@@ -1,2 +1,3 @@
-./data/netcdf/*
-./data/netcdf/
+./outputs/netcdf/*
+./GFv1.1.gdb/*
+./gfv11/*
