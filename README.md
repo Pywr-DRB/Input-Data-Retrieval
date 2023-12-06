@@ -1,4 +1,42 @@
 
+## Overview
+
+This repo is used to prepare and store streamflow data which is used as input to the Pywr-DRB model.
+
+Data which is prepared & stored here includes:
+- USGS gauge streamflow data which is retrieved from the NWIS.
+- NHMv1.0 (NHM-PRMS) modeled streamflow data which is extracted from a CONUS scale dataset.
+- NWMv2.1 modeled streamflow which is extracted from a CONUS scale dataset.
+- Scaled gauge streamflow using NHMv1.0 and NWM2.1 to predict gauge-catchment scaling relationships at some reservoirs in the DRB.
+
+These data are stored in the `datasets/` folder under within their respective `/USGS/`, `/NHMv10/`, and `/NWMv21/` subdirectories. 
+
+| Dataset | Filename | Description | 
+| --- | --- | --- |
+| USGS | `drb_all_usgs_metadata.csv` | Metadata for all gauges in the DRB from NWIS query which includes site number, lat, long, comid, etc. | 
+| USGS | `drb_unmanaged_usgs_metadata.csv` | Metadata for just those gauges deemed to be 'unmanaged', based on NLDI upstream storage and dam characteristic data. | 
+| USGS | `streamflow_daily_usgs_cms.csv` | Daily streamflow at USGS gauges in the DRB. Units in CMS. These are later used by Pywr-DRB.|
+| NHMv10 |  `hdf/drb_seg_outflow_mgd.hdf5` | All NHMv1.0 modeled segment outflows in the DRB in HDF5 format. | 
+| NHMv10 | `csv/streamflow_daily_nhmv10_mgd.csv` | NHMv1.0 modeled streamflows which are used as Pywr-DRB inputs. | 
+| NWMv21 | `nwmv21_unmanaged_gauge_metadata.csv` | Metadata for USGS gauges that are modeled in NWM. Includes site number, comid, lat, and long. | 
+| NWMv21 | `nwmv21_unmanaged_gauge_streamflow_daily.csv` | NWM modeled flows at some USGS gauge locations. This is used in the historic streamflow reconstruction (DRB-Historic-Reconstruction). | 
+| NWMv21 | `streamflow_daily_nwmv21_mgd.csv` | NWM modeled flows at gauges, segments, and lake inflows. This was provided by NCAR collaborators. | 
+| Hybrid | `USGS/scaled_inflows_nhmv10.csv` | Reservoir inflow timeseries at some DRB reservoirs which are generated as the scaled aggregate sum of inflow gauges into that reservoir. Scaling is based on a linear regression of NHM modeled flow at the catchment outlet relative to the NHM modeled flow at the observed gauges. | 
+| Hybrid | `USGS/scaled_inflows_nhmv10` | Same as above, with the scaling based on NWM modeled streamflows. | 
+
+
+### Data Processing Scripts
+
+The processing used to generate the above-described datasets can be replicated using this scripts in the root folder of this repo.   
+
+Before getting started, you should modify the paths contained in the `directories.py` file.  These paths should point to folders containing the original data source files, listed in the Data Sources section of this README.
+
+At the top of each script is a list of necessary files that need to be available in the specified directory. 
+
+- `retireve_usgs_data.py`
+    - This script will use the NWIS to retrieve metadata and daily streamflow data at USGS gauges in the DRB. 
+
+---
 
 ## Data sources
 

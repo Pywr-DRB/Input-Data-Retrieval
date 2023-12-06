@@ -7,6 +7,7 @@ Data is retrieved from 1900 onward to the present.
 """
 
 import sys
+import itertools
 import numpy as np
 import pandas as pd
 import geopandas as gpd
@@ -14,11 +15,17 @@ import geopandas as gpd
 from pygeohydro import NWIS
 import pynhd as pynhd
 
-pywrdrb_dir = '../Pywr-DRB/'
-sys.path.append(pywrdrb_dir)
-from pywrdrb.pywr_drb_node_data import obs_site_matches
+OUTPUT_DIR = './datasets/USGS/'
+PYWRDRB_DIR = '../Pywr-DRB/'
+sys.path.append(PYWRDRB_DIR)
+from pywrdrb.pywr_drb_node_data import obs_site_matches, obs_pub_site_matches
+pywrdrb_obs_gauges = [x for x in obs_pub_site_matches.values() if x is not None]
+pywrdrb_obs_gauges = list(itertools.chain.from_iterable(pywrdrb_obs_gauges))
 
+print(f'PywrDRB has {pywrdrb_obs_gauges} gauges.')
 
+export_to_pywrdrb = False
+ 
 ### Setup
 dates = ('1900-01-01', '2022-12-31')
 
@@ -28,7 +35,7 @@ boundary = 'drb' if filter_drb else 'regional'
 
 
 def filter_drb_sites(x, 
-                     sdir = f'{pywrdrb_dir}/DRB_spatial/DRB_shapefiles'):
+                     sdir = f'{PYWRDRB_DIR}/DRB_spatial/DRB_shapefiles'):
     """Filters USGS gauge data to remove gauges outside the DRB boundary.
 
     Args:
@@ -63,8 +70,9 @@ for s in pywrdrb_stations:
     assert(f'USGS-{s}' in Q_pywrdrb.columns),'PywrDRB gauge {s} is missing from the data.'
 
 # Export
-Q_pywrdrb.to_csv('./outputs/USGS/streamflow_daily_usgs_1950_2022_cms.csv', sep=',')
-Q_pywrdrb.to_csv(f'{pywrdrb_dir}/input_data/usgs_gages/streamflow_daily_usgs_1950_2022_cms.csv', sep=',')
+Q_pywrdrb.to_csv(f'{OUTPUT_DIR}/streamflow_daily_usgs_cms.csv', sep=',')
+if export_to_pywrdrb:
+    Q_pywrdrb.to_csv(f'{PYWRDRB_DIR}/input_data/usgs_gages/streamflow_daily_usgs_1950_2022_cms.csv', sep=',')
 
 
 
@@ -152,12 +160,13 @@ gage_with_cat_chars.index = gage_data.index
 managed_stations = []
 for i, st in enumerate(gage_data.index):
     if gage_with_cat_chars.loc[st, TOT_reservoir_characteristics].sum() > 0:
-        managed_stations.append(st)
-
+        if st not in pywrdrb_obs_gauges:
+            managed_stations.append(st)
+    
 # Take data from just unmanaged
 unmanaged_gauge_data = gage_data.drop(managed_stations)
 print(f'{len(managed_stations)} of the {gage_data.shape[0]} gauge stations are managed and being removed.')
 
 # Export gage_data
-gage_data.to_csv(f'./outputs/USGS/{boundary}_all_usgs_metadata.csv', sep=',')
-unmanaged_gauge_data.to_csv(f'./outputs/USGS/{boundary}_unmanaged_usgs_metadata.csv', sep=',')
+gage_data.to_csv(f'{OUTPUT_DIR}/{boundary}_all_usgs_metadata.csv', sep=',')
+unmanaged_gauge_data.to_csv(f'{OUTPUT_DIR}/{boundary}_unmanaged_usgs_metadata.csv', sep=',')

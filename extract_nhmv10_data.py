@@ -33,7 +33,7 @@ import sys
 import itertools
 
 from directories import PYWRDRB_DIR, NHM_DIR
-OUTPUT_DIR = './outputs/NHMv10/'
+OUTPUT_DIR = './datasets/NHMv10/'
 
 sys.path.append(PYWRDRB_DIR)
 from pywrdrb.pywr_drb_node_data import nhm_site_matches, immediate_downstream_nodes_dict, obs_pub_site_matches

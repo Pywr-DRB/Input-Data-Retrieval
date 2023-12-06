@@ -6,10 +6,9 @@ import matplotlib.pyplot as plt
 
 cms_to_mgd = 22.82
 
-data_dir = f'./outputs/'
 fig_dir = f'./figures/usgs_inflow_scaling/' 
-output_dir = f'./outputs/'
-pywrdrb_dir = '../Pywr-DRB/'
+OUTPUT_DIR = f'./datasets/'
+PYWDRB_DIR = '../Pywr-DRB/'
 
 # Dict of different gauge/HRU IDs for different datasets
 scaling_site_matches = {'cannonsville':{'nhmv10_gauges': ['1556', '1559'],
@@ -53,33 +52,33 @@ def prep_inflow_scaling_data():
 
     # Load observed, NHM, and NWM flow
     ## USGS
-    obs_flows = pd.read_csv(f'{output_dir}/USGS/streamflow_daily_usgs_1950_2022_cms.csv', 
+    obs_flows = pd.read_csv(f'{OUTPUT_DIR}/USGS/streamflow_daily_usgs_1950_2022_cms.csv', 
                             index_col=0, parse_dates=True)*cms_to_mgd
     usgs_gauge_ids = [c.split('-')[1] for c in obs_flows.columns]
     obs_flows.columns = usgs_gauge_ids
     obs_flows.index = pd.to_datetime(obs_flows.index.date)
 
     # Metadata: USGS site number, longitude, latitude, comid, etc.
-    unmanaged_gauge_meta = pd.read_csv(f'{output_dir}/USGS/drb_unmanaged_usgs_metadata.csv', sep = ',', 
+    unmanaged_gauge_meta = pd.read_csv(f'{OUTPUT_DIR}/USGS/drb_unmanaged_usgs_metadata.csv', sep = ',', 
                                     dtype = {'site_no':str})
     unmanaged_gauge_meta.set_index('site_no', inplace=True)
 
     ## NHM
     # Streamflow
-    nhmv10_flows = pd.read_csv(f'{pywrdrb_dir}/input_data/modeled_gages/streamflow_daily_nhmv10_mgd.csv', 
+    nhmv10_flows = pd.read_csv(f'{PYWDRB_DIR}/input_data/modeled_gages/streamflow_daily_nhmv10_mgd.csv', 
                             index_col=0, parse_dates=True)
     nhmv10_flows = nhmv10_flows.loc['1983-10-01':, :]
 
 
     ## NWMv2.1
     # modeled gauge flows
-    nwm_gauge_flows = pd.read_csv(f'{output_dir}/NWMv21/nwmv21_unmanaged_gauge_streamflow_daily_mgd.csv', 
+    nwm_gauge_flows = pd.read_csv(f'{OUTPUT_DIR}/NWMv21/nwmv21_unmanaged_gauge_streamflow_daily_mgd.csv', 
                                         sep = ',', index_col=0, parse_dates=True)
     nwm_gauge_flows= nwm_gauge_flows.loc['1983-10-01':, :]
 
 
     # Metadata
-    nwm_gauge_meta = pd.read_csv(f'{output_dir}/NWMv21/nwmv21_unmanaged_gauge_metadata.csv', 
+    nwm_gauge_meta = pd.read_csv(f'{OUTPUT_DIR}/NWMv21/nwmv21_unmanaged_gauge_metadata.csv', 
                                         sep = ',', 
                                         dtype={'site_no':str, 'comid':str})
     # Replace nwm reachcodes with gauge ids
@@ -90,7 +89,7 @@ def prep_inflow_scaling_data():
                                    inplace=True)
 
     # modeled lake inflows and segment flows
-    nwm_lake_inflows = pd.read_csv(f'{pywrdrb_dir}/input_data/modeled_gages/streamflow_daily_nwmv21_mgd.csv', 
+    nwm_lake_inflows = pd.read_csv(f'{PYWDRB_DIR}/input_data/modeled_gages/streamflow_daily_nwmv21_mgd.csv', 
                                         index_col=0, parse_dates=True)
     nwm_lake_inflows = nwm_lake_inflows.loc['1983-10-01':, :]
     
@@ -182,7 +181,7 @@ def generate_scaled_inflows(start_date, end_date,
                             export=True):
 
     # Load historic USGS obs
-    Q_obs = pd.read_csv(f'{output_dir}USGS/streamflow_daily_usgs_1950_2022_cms.csv',
+    Q_obs = pd.read_csv(f'{OUTPUT_DIR}USGS/streamflow_daily_usgs_1950_2022_cms.csv',
                                     index_col=0, parse_dates=True)*cms_to_mgd
     if '-' in Q_obs.columns[0]:
         usgs_gauge_ids = [c.split('-')[1] for c in Q_obs.columns]
@@ -231,8 +230,8 @@ def generate_scaled_inflows(start_date, end_date,
     Q_obs_scaled = Q_obs_scaled.loc[start_date:end_date, scaled_reservoirs]    
     # Export
     if export:
-        Q_obs_scaled.to_csv(f'./outputs/scaled_inflows_{donor_model}.csv', sep=',')
-        Q_obs_scaled.to_csv(f'{pywrdrb_dir}/input_data/scaled_inflows/scaled_inflows_{donor_model}.csv', sep=',')
+        Q_obs_scaled.to_csv(f'{OUTPUT_DIR}/Hybrid/scaled_inflows_{donor_model}.csv', sep=',')
+        Q_obs_scaled.to_csv(f'{PYWDRB_DIR}/input_data/scaled_inflows/scaled_inflows_{donor_model}.csv', sep=',')
     else:
         return Q_obs_scaled 
 

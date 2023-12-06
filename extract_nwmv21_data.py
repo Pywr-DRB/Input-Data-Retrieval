@@ -11,10 +11,9 @@ import sys
 import itertools
 
 from directories import PYWRDRB_DIR, NWM_DIR
-OUTPUT_DIR = './outputs/NWMv21/'
+OUTPUT_DIR = './datasets/NWMv21/'
 
 sys.path.append(PYWRDRB_DIR)
-from pywrdrb.pywr_drb_node_data import nhm_site_matches, immediate_downstream_nodes_dict, obs_pub_site_matches
 
 # Constants
 cms_to_mgd = 22.82
@@ -29,8 +28,8 @@ nwm_nwis = nc.Dataset(f'{NWM_DIR}nwmv21_nwis.nc')
 print('NWMv21 NWIS dataset loaded...')
 
 # Load unmanaged gauge metadata
-unmanaged_gauge_metadata = pd.read_csv(f'./outputs/USGS/drb_unmanaged_usgs_metadata.csv', dtype={'site_no':str})
-all_gauge_metadata = pd.read_csv(f'./outputs/USGS/drb_all_usgs_metadata.csv', dtype={'site_no':str})
+unmanaged_gauge_metadata = pd.read_csv(f'./datasets/USGS/drb_unmanaged_usgs_metadata.csv', dtype={'site_no':str})
+all_gauge_metadata = pd.read_csv(f'./datasets/USGS/drb_all_usgs_metadata.csv', dtype={'site_no':str})
 
 # Pull longitude and latitude
 long = nwm_nwis['longitude'][:].data
