@@ -23,20 +23,3 @@ Bock, A.E, Santiago,M., Wieczorek, M.E., Foks, S.S., Norton, P.A., and Lombard, 
 Point of Interest IDs (`poi_gage_segment.csv` and `poi_gage_id.csv`) were retrieved from: 
 https://github.com/nhm-params-v10-usgs/paramdb_v10_daymet_CONUS
 
----
-
-
-This script is used to retreive all available NHM data from within the Delaware River Basin and store outputs as CSV files.
-
-The method follows:
-1.0 Get the IDs for all segments in the DRB
-    1.1 Load the USGS geospatial fabric (GFv1.1) and DRB boundary
-    1.2 Clip the GF using the boundary to identify all DRB relevant info.
-2.0 Load and extract the NHM data of interest
-    2.1 Load the .tar and get file members
-    2.2 Extract files of interest
-    2.3 Filter the data for DRB relevant values
-3.0 Export CSVs
-
-
-

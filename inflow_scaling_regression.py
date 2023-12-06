@@ -7,16 +7,16 @@ import matplotlib.pyplot as plt
 cms_to_mgd = 22.82
 
 data_dir = f'./outputs/'
-fig_dir = f'./figures/'
+fig_dir = f'./figures/usgs_inflow_scaling/' 
 output_dir = f'./outputs/'
 pywrdrb_dir = '../Pywr-DRB/'
 
 # Dict of different gauge/HRU IDs for different datasets
 scaling_site_matches = {'cannonsville':{'nhmv10_gauges': ['1556', '1559'],
                                 'nhmv10_hru': ['1562'],
-                                'nwmv21_gauges': ['01423000', '0142400103'],
+                                'nwmv21_gauges': ['01423000'],  # '0142400103' should be incuded but does not begin till 1996
                                 'nwmv21_hru': ['2613174'],
-                                'obs_gauges': ['01423000', '0142400103']},
+                                'obs_gauges': ['01423000']},     # '0142400103' should be incuded but does not begin till 1996
                         'neversink': {'nhmv10_gauges': ['1645'],
                                       'nhmv10_hru': ['1638'],
                                       'nwmv21_gauges': ['01435000'],
@@ -24,9 +24,9 @@ scaling_site_matches = {'cannonsville':{'nhmv10_gauges': ['1556', '1559'],
                                       'obs_gauges': ['01435000']},
                         'pepacton': {'nhmv10_gauges': ['1440', '1441', '1443', '1437'],
                                         'nhmv10_hru': ['1449'],
-                                        'nwmv21_gauges': ['01415000', '01414500', '01414000', '01413500'],
+                                        'nwmv21_gauges': ['01415000', '01414500', '01413500'], # '01414000' should be incuded but does not begin till 1996
                                         'nwmv21_hru': ['1748473'],
-                                        'obs_gauges': ['01415000', '01414500', '01414000', '01413500']},
+                                        'obs_gauges': ['01415000', '01414500', '01413500']},  # '01414000' should be incuded but does not begin till 1996
                         'fewalter': {'nhmv10_gauges': ['1684', '1691'],
                                         'nhmv10_hru': ['1684', '1691', '1694'],
                                         'nwmv21_gauges': ['01447720', '01447500'],
@@ -178,7 +178,8 @@ def predict_inflow_scaling(lrr, log_flow):
 
 def generate_scaled_inflows(start_date, end_date, 
                             scaling_rolling_window=3, 
-                            donor_model='nhmv10'):
+                            donor_model='nhmv10', 
+                            export=True):
 
     # Load historic USGS obs
     Q_obs = pd.read_csv(f'{output_dir}USGS/streamflow_daily_usgs_1950_2022_cms.csv',
@@ -187,6 +188,7 @@ def generate_scaled_inflows(start_date, end_date,
         usgs_gauge_ids = [c.split('-')[1] for c in Q_obs.columns]
         Q_obs.columns = usgs_gauge_ids
     Q_obs.index = pd.to_datetime(Q_obs.index.date)
+    Q_obs = Q_obs.loc[start_date:end_date, :]
     Q_obs_scaled = Q_obs.copy()
     
     # Train models
@@ -203,18 +205,16 @@ def generate_scaled_inflows(start_date, end_date,
             
     for reservoir in scaled_reservoirs:
         inflow_gauges = scaling_site_matches[reservoir][f'obs_gauges']
-        unscaled_inflows = Q_obs.loc[:, inflow_gauges]
-        
+        unscaled_inflows = Q_obs.loc[:, inflow_gauges].sum(axis=1)
         
         # Use linear regression to find inflow scaling coefficient
         # Different models are used for each quarter; done by month batches
         for m in range(1,13):
             quarter = get_quarter(m)
-            unscaled_month_inflows = unscaled_inflows.loc[unscaled_inflows.index.month == m, :].sum(axis=1)
-            rolling_unscaled_month_inflows = unscaled_month_inflows.rolling(window=scaling_rolling_window, 
-                                                                            min_periods=1).mean()
+            rolling_unscaled_inflows = unscaled_inflows.rolling(window=scaling_rolling_window,
+                                                                min_periods=1).mean() 
+            rolling_unscaled_month_inflows = rolling_unscaled_inflows.loc[unscaled_inflows.index.month == m]
             rolling_unscaled_month_log_inflows = np.log(rolling_unscaled_month_inflows.astype('float64'))
-            
             
             month_scaling_coefs = predict_inflow_scaling(linear_results[reservoir][quarter], 
                                                         log_flow= rolling_unscaled_month_log_inflows)
@@ -227,12 +227,14 @@ def generate_scaled_inflows(start_date, end_date,
                 Q_obs_scaled.loc[Q_obs.index.month==m, site] = Q_obs.loc[Q_obs.index.month==m, site] * month_scaling_coefs[site]
     
         Q_obs_scaled.loc[:, reservoir] = Q_obs_scaled.loc[:, inflow_gauges].sum(axis=1)
-    
+
+    Q_obs_scaled = Q_obs_scaled.loc[start_date:end_date, scaled_reservoirs]    
     # Export
-    Q_obs_scaled = Q_obs_scaled.loc[start_date:end_date, scaled_reservoirs]
-    Q_obs_scaled.to_csv(f'./outputs/scaled_inflows_{donor_model}.csv', sep=',')
-    Q_obs_scaled.to_csv(f'{pywrdrb_dir}/input_data/scaled_inflows/scaled_inflows_{donor_model}.csv', sep=',')
-    return 
+    if export:
+        Q_obs_scaled.to_csv(f'./outputs/scaled_inflows_{donor_model}.csv', sep=',')
+        Q_obs_scaled.to_csv(f'{pywrdrb_dir}/input_data/scaled_inflows/scaled_inflows_{donor_model}.csv', sep=',')
+    else:
+        return Q_obs_scaled 
 
 
 
@@ -266,11 +268,11 @@ def plot_inflow_scaling_regression(donor_model = 'nhmv10', roll_window = 3):
             ax.scatter(log_flow, scaling_coeff, c = scatter_colors[quarter], 
                        alpha = 0.2)
             ax.plot(log_flow, lrr.predict(), c='k', 
-                    linestyle='--', lw=2, zorder=4)
+                    linestyle='-', lw=1, zorder=4)
             
             # Annotate R-squared value
             ax.annotate(f"R^2 = {lrr.rsquared:.2f}\np-val = {lrr.pvalues[1]:.4f}", 
-                        xy=(0.1, 0.75), xycoords='axes fraction', fontsize=12)
+                        xy=(0.1, 0.7), xycoords='axes fraction', fontsize=12)
         
             # Setting labels and title for the subplot
             if i == 0:
@@ -281,23 +283,28 @@ def plot_inflow_scaling_regression(donor_model = 'nhmv10', roll_window = 3):
                 ax.set_xlabel("Log Flow")
         i += 1
     
-    plt.suptitle(f'Inflow Scaling Regressions (Log Flow vs. Scaling Coefficient)\nUsing model {donor_model.upper()}', 
+    plt.suptitle((f'Inflow Scaling Regressions\n'+ 
+                 f'Using model {donor_model.upper()} for Scaling Coefficient\n' +
+                 f'Rolling Mean Log-Flow with Window = {roll_window} days'),
                  fontsize=16)
     plt.tight_layout()
-    plt.savefig(f'{fig_dir}inflow_scaling_regression_{donor_model}_rolling_{roll_window}.png', dpi=300)
-    plt.show()
+    plt.savefig(f'{fig_dir}inflow_scaling_regression_{donor_model}_rolling{roll_window}.png', dpi=300)
+    plt.close()
     return
 
 if __name__ == '__main__':
 
-    generate_scaled_inflows(start_date='1983-10-01', end_date='2020-12-31', 
-                            scaling_rolling_window=3, 
-                            donor_model='nhmv10')
-    plot_inflow_scaling_regression(donor_model = 'nhmv10', roll_window = 3)
+    for rolling_mean_window in [1, 3, 5, 7]:    
+        export_scaled_inflows = True if rolling_mean_window == 3 else False
+        generate_scaled_inflows(start_date='1983-10-01', end_date='2020-12-31', 
+                                scaling_rolling_window=rolling_mean_window, 
+                                donor_model='nhmv10',
+                                export=export_scaled_inflows)
+        plot_inflow_scaling_regression(donor_model = 'nhmv10', roll_window = rolling_mean_window)
 
 
-    generate_scaled_inflows(start_date='1983-10-01', end_date='2020-12-31', 
-                            scaling_rolling_window=3, 
-                            donor_model='nwmv21')
-
-    plot_inflow_scaling_regression(donor_model = 'nwmv21', roll_window = 3)
+        generate_scaled_inflows(start_date='1983-10-01', end_date='2020-12-31', 
+                                scaling_rolling_window=rolling_mean_window, 
+                                donor_model='nwmv21',
+                                export=export_scaled_inflows)
+        plot_inflow_scaling_regression(donor_model = 'nwmv21', roll_window = rolling_mean_window)

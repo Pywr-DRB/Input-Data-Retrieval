@@ -1,6 +1,7 @@
 */__pycache__/*
 __pycache__/*
 
+./figures/usgs_inflow_scaling/*
 ./outputs/netcdf/*
 ./GFv1.1.gdb/*
 ./gfv11/*
@@ -73,3 +74,4 @@ GFv1.1.gdb/a00000033.gdbtable
 GFv1.1.gdb/a00000033.gdbtablx
 GFv1.1.gdb/gdb
 GFv1.1.gdb/timestamps
+data/GFv1.1.gdb.zip

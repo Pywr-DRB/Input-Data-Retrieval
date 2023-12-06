@@ -32,12 +32,14 @@ import matplotlib as mpl
 import sys
 import itertools
 
-pywrdrb_dir = '../Pywr-DRB/'
-sys.path.append(pywrdrb_dir)
+from directories import PYWRDRB_DIR, NHM_DIR
+OUTPUT_DIR = './outputs/NHMv10/'
+
+sys.path.append(PYWRDRB_DIR)
 from pywrdrb.pywr_drb_node_data import nhm_site_matches, immediate_downstream_nodes_dict, obs_pub_site_matches
 
-NHM_DATA_DIR = 'C:/Users/tja73/Downloads'
 re_extract = False
+export_to_pywrdrb = True
 
 # Constants
 cms_to_mgd = 22.82
@@ -46,16 +48,15 @@ cfs_to_mgd = 0.64631688969744
 
 # Load DRB and GF geospatial
 crs = 4386
-drb = gpd.read_file(f'{pywrdrb_dir}DRB_spatial/DRB_shapefiles/drb_bnd_polygon.shp').to_crs(crs)
+drb = gpd.read_file(f'{PYWRDRB_DIR}DRB_spatial/DRB_shapefiles/drb_bnd_polygon.shp').to_crs(crs)
 gf = gpd.read_file(f'./GFv1.1.gdb/').to_crs(crs)
 # gf_poi = gpd.read_file(f'./gfv11/gfv11.shp').to_crs(crs)
 
 # Load metadata
-nhm_to_gf_hru = pd.read_csv('./data/nhm_to_GFv1.1_HRU.csv', sep =',')
-nhm_to_gf_seg = pd.read_csv('./data/nhm_to_GFv1.1_SEG.csv', sep =',')
-
-nhm_gage_ids = pd.read_csv("./data/poi_gage_id.csv", index_col=0)
-nhm_seg_ids = pd.read_csv("./data/poi_gage_segment.csv", index_col=0)
+nhm_gage_ids = pd.read_csv(f"{OUTPUT_DIR}/meta/poi_gage_id.csv", 
+                           index_col=0)
+nhm_seg_ids = pd.read_csv(f"{OUTPUT_DIR}/meta/poi_gage_segment.csv", 
+                          index_col=0)
 
 
 nhm_gage_segments = pd.concat([nhm_gage_ids, nhm_seg_ids], axis=1)
@@ -68,14 +69,15 @@ gf_drb = gpd.clip(gf, drb)
 # Store & export DRB relevant segment IDs
 drb_segment_ids = gf_drb['nsegment_v1_1']
 drb_nhm_gage_segments = nhm_gage_segments.loc[nhm_gage_segments['nhm_segment_id'].isin(drb_segment_ids)]
-drb_nhm_gage_segments.to_csv('./outputs/drb_nhm_gage_segment_ids.csv', sep=',')
+drb_nhm_gage_segments.to_csv(f'{OUTPUT_DIR}/meta/drb_nhm_gage_segment_ids.csv', 
+                             sep=',')
 
 
 ## Load the NHM data from .tar file location
 if re_extract:
 
     # Open and store file names
-    tar = tarfile.open(f'{NHM_DATA_DIR}/byHRU_musk_obs.tar')
+    tar = tarfile.open(f'{NHM_DIR}/byHRU_musk_obs.tar')
     all_names = tar.getnames()
     all_members = tar.getmembers()
 
@@ -84,11 +86,12 @@ if re_extract:
     extract_files = ['hru_outflow', 'seg_outflow', 'seg_upstream_inflow']
 
     for i in extract_member_indices:
-        tar.extract(all_members[i], path = './outputs/')
+        tar.extract(all_members[i], path = OUTPUT_DIR)
     tar.close()
+    print('Extracted files from .tar')
 
     ## HRU Outflow
-    hru_data = nc.Dataset(f'./outputs/netcdf/hru_outflow.nc')
+    hru_data = nc.Dataset(f'{OUTPUT_DIR}/netcdf/hru_outflow.nc')
 
     # Store values
     vals = hru_data['hru_outflow'][:]
@@ -102,30 +105,34 @@ if re_extract:
     drb_hru_outflow = hru_outflow_df.loc[:, drb_segment_ids] * cfs_to_mgd
 
     # Export
-    drb_hru_outflow.to_csv('./outputs/csv/drb_hru_outflow_mgd.csv', sep = ',')
-
+    drb_hru_outflow.to_csv(f'{OUTPUT_DIR}/csv/drb_hru_outflow_mgd.csv', sep = ',')
     
     ## Segment Outflow
-    seg_data = nc.Dataset(f'./outputs/netcdf/seg_outflow.nc')
+    seg_data = nc.Dataset(f'{OUTPUT_DIR}/netcdf/seg_outflow.nc')
 
     # Store values
     vals = seg_data['seg_outflow'][:]
     seg_ids = seg_data['segment'][:]
 
     # Make a dataframe
-    seg_outflow_df = pd.DataFrame(vals, index = time_index, columns = seg_ids)
+    seg_outflow_df = pd.DataFrame(vals, 
+                                  index = time_index, 
+                                  columns = seg_ids)
 
     # Pull just DRB locations
     drb_seg_outflow = seg_outflow_df.loc[:, drb_segment_ids] * cfs_to_mgd
 
     # Export
-    drb_seg_outflow.to_csv('./outputs/csv/drb_seg_outflow_mgd.csv', sep = ',')
-    drb_seg_outflow.to_hdf(f'./outputs/hdf/drb_seg_outflow_mgd.hdf5', key = 'df', mode = 'w')
+    drb_seg_outflow.to_csv(f'{OUTPUT_DIR}/csv/drb_seg_outflow_mgd.csv', 
+                           sep = ',')
+    drb_seg_outflow.to_hdf(f'{OUTPUT_DIR}/hdf/drb_seg_outflow_mgd.hdf5', 
+                           key = 'df', mode = 'w')
     
     
 ## Retrieve and export Pywr-DRB nodal inflows
 # Load the segment outflow which was previous extracted
-drb_seg_outflow = pd.read_hdf(f'./outputs/hdf/drb_seg_outflow_mgd.hdf5', key = 'df')
+drb_seg_outflow = pd.read_hdf(f'{OUTPUT_DIR}/hdf/drb_seg_outflow_mgd.hdf5', 
+                              key = 'df')
 
 ## Retrieve just Pywr-DRB relevant flows
 # Node inflows
@@ -149,5 +156,6 @@ pywr_drb_nhm_flows = drb_seg_outflow.loc[:, pywr_drb_sites]
 pywr_drb_nhm_flows = pywr_drb_nhm_flows.T.drop_duplicates().T
 
 # Export
-pywr_drb_nhm_flows.to_csv(f'./outputs/csv/streamflow_daily_nhmv10_mgd.csv', sep = ',')
-pywr_drb_nhm_flows.to_csv(f'{pywrdrb_dir}input_data/modeled_gages/streamflow_daily_nhmv10_mgd.csv', sep = ',')
+pywr_drb_nhm_flows.to_csv(f'{OUTPUT_DIR}/csv/streamflow_daily_nhmv10_mgd.csv', sep = ',')
+if export_to_pywrdrb:
+    pywr_drb_nhm_flows.to_csv(f'{PYWRDRB_DIR}input_data/modeled_gages/streamflow_daily_nhmv10_mgd.csv', sep = ',')
