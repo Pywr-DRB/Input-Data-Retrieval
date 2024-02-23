@@ -11,7 +11,7 @@ OUTPUT_DIR = f'./datasets/'
 PYWDRB_DIR = '../Pywr-DRB/'
 
 # Dict of different gauge/HRU IDs for different datasets
-scaling_site_matches = {'cannonsville':{'nhmv10_gauges': ['1556', '1559'],
+scaling_site_matches = {'cannonsville':{'nhmv10_gauges': ['1556'],   # '1559' matches '0142400103' but is not used (see lower comment)
                                 'nhmv10_hru': ['1562'],
                                 'nwmv21_gauges': ['01423000'],  # '0142400103' should be incuded but does not begin till 1996
                                 'nwmv21_hru': ['2613174'],
@@ -21,7 +21,7 @@ scaling_site_matches = {'cannonsville':{'nhmv10_gauges': ['1556', '1559'],
                                       'nwmv21_gauges': ['01435000'],
                                       'nwmv21_hru': ['4146742'],
                                       'obs_gauges': ['01435000']},
-                        'pepacton': {'nhmv10_gauges': ['1440', '1441', '1443', '1437'],
+                        'pepacton': {'nhmv10_gauges': ['1440', '1441', '1437'],  # '1443' matches '01414000' but is not used (see lower comment)
                                         'nhmv10_hru': ['1449'],
                                         'nwmv21_gauges': ['01415000', '01414500', '01413500'], # '01414000' should be incuded but does not begin till 1996
                                         'nwmv21_hru': ['1748473'],
@@ -46,9 +46,17 @@ nwmv21_scaled_reservoirs = list(scaling_site_matches.keys())
 quarters = ('DJF','MAM','JJA','SON')
 
 
-
 # Function for compiling flow data for regression
 def prep_inflow_scaling_data():
+    """
+    Prepares the data for the inflow scaling regression:
+    - Loads observed, NHM, and NWM inflows for different reservoirs
+    - Aggregates inflows upstream of each reservoir
+    - Combines inflows for each reservoir and all datasets into a single dataframe
+
+    Returns:
+        pd.DataFrame: Dataframe with inflows for each reservoir and dataset.
+    """
 
     # Load observed, NHM, and NWM flow
     ## USGS
@@ -134,11 +142,13 @@ def train_inflow_scale_regression_models(reservoir, inflows,
                                          dataset='nhmv10',
                                          rolling = True, 
                                          window =3):
-    """_summary_
+    """
+    Trains multiple linear regression models used to predict inflow scaling coefficients.
+    A unique model for each season for the specified reservoir.
 
     Args:
-        reservoir (_type_): _description_
-        inflows (_type_): _description_
+        reservoir (str): Name of the reservoir.
+        inflows (pd.DataFrame): pd.DataFrame with inflows for the reservoir and dataset.
 
     Returns:
         (dict, dict): Tuple with OLS model, and fit model
@@ -164,6 +174,13 @@ def train_inflow_scale_regression_models(reservoir, inflows,
 
 
 def predict_inflow_scaling(lrr, log_flow):
+    """
+    Predicts the inflow scaling coefficient using a specific regression model.
+    
+    Args:
+        lrr (statsmodels.regression.linear_model.RegressionResultsWrapper): Regression model.
+        log_flow (pd.Series): Log of the inflow.
+    """
 
     X = sm.add_constant(log_flow)
     scaling = lrr.predict(X)
@@ -179,6 +196,19 @@ def generate_scaled_inflows(start_date, end_date,
                             scaling_rolling_window=3, 
                             donor_model='nhmv10', 
                             export=True):
+    """
+    Goes through the process of generating scaled inflows for all reservoirs using a specific
+    dataset (donor_model) to estimate the scaling relationship.
+    
+    Args:
+        start_date (str): Start date of the prediction period.
+        end_date (str): End date of the prediction period.
+        scaling_rolling_window (int): Number of days to use for rolling mean inflow.
+        donor_model (str): Dataset to use for estimating the scaling relationship.
+        export (bool): Whether to export the scaled inflows to a csv file.
+    Returns:
+        pd.DataFrame: Scaled inflows for all reservoirs.
+    """
 
     # Load historic USGS obs
     Q_obs = pd.read_csv(f'{OUTPUT_DIR}USGS/streamflow_daily_usgs_1950_2022_cms.csv',
@@ -211,7 +241,7 @@ def generate_scaled_inflows(start_date, end_date,
         for m in range(1,13):
             quarter = get_quarter(m)
             rolling_unscaled_inflows = unscaled_inflows.rolling(window=scaling_rolling_window,
-                                                                min_periods=1).mean() 
+                                                                min_periods=1).mean()
             rolling_unscaled_month_inflows = rolling_unscaled_inflows.loc[unscaled_inflows.index.month == m]
             rolling_unscaled_month_log_inflows = np.log(rolling_unscaled_month_inflows.astype('float64'))
             
@@ -232,13 +262,24 @@ def generate_scaled_inflows(start_date, end_date,
     if export:
         Q_obs_scaled.to_csv(f'{OUTPUT_DIR}/Hybrid/scaled_inflows_{donor_model}.csv', sep=',')
         Q_obs_scaled.to_csv(f'{PYWDRB_DIR}/input_data/scaled_inflows/scaled_inflows_{donor_model}.csv', sep=',')
+        return Q_obs_scaled
     else:
         return Q_obs_scaled 
 
 
 
-
-def plot_inflow_scaling_regression(donor_model = 'nhmv10', roll_window = 3):
+def plot_inflow_scaling_regression(donor_model = 'nhmv10', 
+                                   roll_window = 3):
+    """
+    Creates a plot with all inflow scaling regressions for a specific dataset.
+    
+    Args:
+        donor_model (str): Dataset to use for estimating the scaling relationship.
+        roll_window (int): Number of days to use for rolling mean inflow.
+    Returns:
+        None
+    """
+    
     # Prepare the inflow scaling data
     inflow_data = prep_inflow_scaling_data()
     scatter_colors= {'DJF':'cornflowerblue', 'MAM':'darkgreen', 'JJA':'maroon', 'SON':'gold'}
@@ -265,27 +306,31 @@ def plot_inflow_scaling_regression(donor_model = 'nhmv10', roll_window = 3):
             scaling_coeff = lrr.model.endog
             
             ax.scatter(log_flow, scaling_coeff, c = scatter_colors[quarter], 
-                       alpha = 0.2)
+                       alpha = 0.1, s=10)
             ax.plot(log_flow, lrr.predict(), c='k', 
                     linestyle='-', lw=1, zorder=4)
             
             # Annotate R-squared value
+            # Get p value of regression model
             ax.annotate(f"R^2 = {lrr.rsquared:.2f}\np-val = {lrr.pvalues[1]:.4f}", 
                         xy=(0.1, 0.7), xycoords='axes fraction', fontsize=12)
+        
+            # Annotate regression equation
+            ax.annotate(f"y = {lrr.params[1]:.2f}x + {lrr.params[0]:.2f}", 
+                        xy=(0.1, 0.9), xycoords='axes fraction', fontsize=12)
         
             # Setting labels and title for the subplot
             if i == 0:
                 ax.set_title(f"{quarter}")
             if j == 0:
-                ax.set_ylabel(f"{reservoir}")
+                ax.set_ylabel(f"{reservoir.capitalize()}\nScaling Coefficient")
             if i == n_rows - 1:
-                ax.set_xlabel("Log Flow")
+                ax.set_xlabel("Log Flow (MGD)")
         i += 1
     
-    plt.suptitle((f'Inflow Scaling Regressions\n'+ 
-                 f'Using model {donor_model.upper()} for Scaling Coefficient\n' +
-                 f'Rolling Mean Log-Flow with Window = {roll_window} days'),
-                 fontsize=16)
+    plt.suptitle((f'Inflow Scaling Coefficient Regressions\n'+
+                  f'{donor_model.upper()} used to estimate scaling coefficient dependent on {roll_window} day rolling mean log-flow'),
+                 fontsize=14)
     plt.tight_layout()
     plt.savefig(f'{fig_dir}inflow_scaling_regression_{donor_model}_rolling{roll_window}.png', dpi=300)
     plt.close()
