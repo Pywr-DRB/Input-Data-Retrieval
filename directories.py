@@ -27,3 +27,5 @@ necessary_files = ['nwmv21_nwis.nc']
 for file in necessary_files:
     assert(file in os.listdir(NWM_DIR)), f'Required file {file} not found in {NWM_DIR}'
 
+# Contains various WRF-Hydro model outputs, as provided by Aubrey Duggar at NCAR
+WRFHYDRO_DIR = './datasets/WRF-Hydro/'
