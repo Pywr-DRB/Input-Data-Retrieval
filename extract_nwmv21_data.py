@@ -46,9 +46,9 @@ nwm_gauge_matches['long'] = []
 
 nwm_gauge_matches_idx = []
 for i,id in enumerate(feature_id):
-    if id in list(unmanaged_gauge_metadata['comid']):
+    if id in list(all_gauge_metadata['comid']):
         nwm_gauge_matches['comid'].append(id)
-        nwm_gauge_matches['site_no'].append(unmanaged_gauge_metadata.loc[unmanaged_gauge_metadata['comid']==id, 'site_no'].values[0])
+        nwm_gauge_matches['site_no'].append(all_gauge_metadata.loc[all_gauge_metadata['comid']==id, 'site_no'].values[0])
         nwm_gauge_matches['lat'].append(lat[i])
         nwm_gauge_matches['long'].append(long[i])
         
@@ -56,11 +56,6 @@ for i,id in enumerate(feature_id):
 
     # TODO: A new reach for Nockamixon: the original is bad    
     # elif str(id) == '2591219':
-    #     nwm_gauge_matches['comid'].append(id)
-    #     nwm_gauge_matches['site_no'].append(unmanaged_gauge_metadata.loc[unmanaged_gauge_metadata['comid']==id, 
-    #                                                                      'site_no'].values[0])
-    #     nwm_gauge_matches['lat'].append(lat[i])
-    #     nwm_gauge_matches['long'].append(long[i])
         
     
     elif str(id) == '4147956':
@@ -98,9 +93,9 @@ nwm_streamflow.columns = nwm_streamflow.columns.astype(str)
 
 ## Export
 # Streamflow
-nwm_streamflow.to_csv(f'{OUTPUT_DIR}/nwmv21_unmanaged_gauge_streamflow_daily_mgd.csv')
+nwm_streamflow.to_csv(f'{OUTPUT_DIR}/nwmv21_gauge_streamflow_daily_mgd.csv')
 
 # Metadata
 nwm_gauge_matches = pd.DataFrame(nwm_gauge_matches)
-nwm_gauge_matches.to_csv(f'{OUTPUT_DIR}/nwmv21_unmanaged_gauge_metadata.csv', index=False)
+nwm_gauge_matches.to_csv(f'{OUTPUT_DIR}/nwmv21_gauge_metadata.csv', index=False)
 print(f'NWMv21 NWIS streamflow and metadata exported to {OUTPUT_DIR}!')
