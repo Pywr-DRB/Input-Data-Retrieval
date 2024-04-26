@@ -8,7 +8,7 @@ cms_to_mgd = 22.82
 
 fig_dir = f'./figures/usgs_inflow_scaling/' 
 OUTPUT_DIR = f'./datasets/'
-PYWDRB_DIR = '../Pywr-DRB/'
+PYWRDRB_DIR = '../Pywr-DRB/'
 
 # Dict of different gauge/HRU IDs for different datasets
 scaling_site_matches = {'cannonsville':{'nhmv10_gauges': ['1556'],   # '1559' matches '0142400103' but is not used (see lower comment)
@@ -73,7 +73,7 @@ def prep_inflow_scaling_data():
 
     ## NHM
     # Streamflow
-    nhmv10_flows = pd.read_csv(f'{PYWDRB_DIR}/input_data/modeled_gages/streamflow_daily_nhmv10_mgd.csv', 
+    nhmv10_flows = pd.read_csv(f'{PYWRDRB_DIR}/input_data/modeled_gages/streamflow_daily_nhmv10_mgd.csv', 
                             index_col=0, parse_dates=True)
     nhmv10_flows = nhmv10_flows.loc['1983-10-01':, :]
 
@@ -97,7 +97,7 @@ def prep_inflow_scaling_data():
                                    inplace=True)
 
     # modeled lake inflows and segment flows
-    nwm_lake_inflows = pd.read_csv(f'{PYWDRB_DIR}/input_data/modeled_gages/streamflow_daily_nwmv21_mgd.csv', 
+    nwm_lake_inflows = pd.read_csv(f'{PYWRDRB_DIR}/input_data/modeled_gages/streamflow_daily_nwmv21_mgd.csv', 
                                         index_col=0, parse_dates=True)
     nwm_lake_inflows = nwm_lake_inflows.loc['1983-10-01':, :]
     
@@ -261,7 +261,7 @@ def generate_scaled_inflows(start_date, end_date,
     # Export
     if export:
         Q_obs_scaled.to_csv(f'{OUTPUT_DIR}/Hybrid/scaled_inflows_{donor_model}.csv', sep=',')
-        Q_obs_scaled.to_csv(f'{PYWDRB_DIR}/input_data/scaled_inflows/scaled_inflows_{donor_model}.csv', sep=',')
+        Q_obs_scaled.to_csv(f'{PYWRDRB_DIR}/input_data/scaled_inflows/scaled_inflows_{donor_model}.csv', sep=',')
         return Q_obs_scaled
     else:
         return Q_obs_scaled 
