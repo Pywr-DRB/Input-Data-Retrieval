@@ -62,7 +62,10 @@ def prep_inflow_scaling_data():
     ## USGS
     obs_flows = pd.read_csv(f'{OUTPUT_DIR}/USGS/streamflow_daily_usgs_1950_2022_cms.csv', 
                             index_col=0, parse_dates=True)*cms_to_mgd
-    usgs_gauge_ids = [c.split('-')[1] for c in obs_flows.columns]
+    if '-' in obs_flows.columns[0]:
+        usgs_gauge_ids = [c.split('-')[1] for c in obs_flows.columns]
+    else: 
+        usgs_gauge_ids = obs_flows.columns
     obs_flows.columns = usgs_gauge_ids
     obs_flows.index = pd.to_datetime(obs_flows.index.date)
 
