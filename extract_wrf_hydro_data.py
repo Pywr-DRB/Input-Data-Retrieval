@@ -280,7 +280,7 @@ if __name__ == '__main__':
     }
 
     retrieve_and_export_pywrdrb_input_from_WRF_Hydro_output(config, wrf_hydro_site_matches, 
-                                                            labelby_pywrdrb_nodes=True, return_df=False)
+                                                            labelby_pywrdrb_nodes=False, return_df=False)
 
     config = {
         'climate': 'aorc',
@@ -288,7 +288,7 @@ if __name__ == '__main__':
         'landcover': 'foresce2010',
     }
     retrieve_and_export_pywrdrb_input_from_WRF_Hydro_output(config, wrf_hydro_site_matches, 
-                                                            labelby_pywrdrb_nodes=True, return_df=False)
+                                                            labelby_pywrdrb_nodes=False, return_df=False)
 
     ## 1960s climate
     print('Processing 1960s climate WRF-Hydro datasets...')
@@ -298,7 +298,7 @@ if __name__ == '__main__':
         'landcover': 'nlcd2016',
     }
     retrieve_and_export_pywrdrb_input_from_WRF_Hydro_output(config, wrf_hydro_site_matches, 
-                                                            labelby_pywrdrb_nodes=True, return_df=False)
+                                                            labelby_pywrdrb_nodes=False, return_df=False)
     
     
     ## 2050s climate
@@ -309,4 +309,4 @@ if __name__ == '__main__':
         'landcover': 'nlcd2016',
     }
     retrieve_and_export_pywrdrb_input_from_WRF_Hydro_output(config, wrf_hydro_site_matches, 
-                                                            labelby_pywrdrb_nodes=True, return_df=False)
+                                                            labelby_pywrdrb_nodes=False, return_df=False)
