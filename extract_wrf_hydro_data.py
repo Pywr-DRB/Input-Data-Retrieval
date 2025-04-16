@@ -24,7 +24,7 @@ import netCDF4 as nc
 import pandas as pd
 import sys
 import os
-
+from inflow_scaling_regression import scaling_site_matches
 from directories import WRFHYDRO_DIR, PYWRDRB_DIR
 
 # Constants
@@ -55,7 +55,6 @@ date_ranges = {
     'aorc': ('1979-10-01', '2021-12-31'),
     '2050s': ('2051-10-01', '2061-12-31'),
 }
-
 
 
 ## WRF-Hydro COMID numbers; taken from nhm_site_matches
@@ -91,6 +90,22 @@ wrf_hydro_site_matches = {'cannonsville': ['2613174'],    # Lake inflow
                     '01470960': ['4783213'],
                     'outletSchuylkill': ['4784841']
                     }
+
+## Sites used for obs inflow scaling
+wrf_scaling_gauges = []
+wrf_scaling_hrus = []
+for reservoir, match_dict in scaling_site_matches.items():
+    for flow_type, ids in match_dict.items():
+        if 'wrf' in flow_type:
+            for id in ids:
+                if 'gauge' in flow_type:
+                    if id not in wrf_scaling_gauges:
+                        wrf_scaling_gauges.append(id)
+                elif 'hru' in flow_type:
+                    if id not in wrf_scaling_hrus:
+                        wrf_scaling_hrus.append(id)
+print(f'WRF-Hydro inflow scaling reaches: {wrf_scaling_gauges}')
+print(f'WRF-Hydro inflow scaling HRUs: {wrf_scaling_hrus}')
 
 pywrdrb_wrf_hydro_flowtypes = {
     'cannonsville': 'lakes',    # Lake inflow
@@ -221,6 +236,12 @@ def retrieve_pywrdrb_inputs_from_WRF_Hydro(climate, calib, landcover,
     wrf_lakes_df = load_WRF_Hydro_data_from_config(config, date_ranges=date_ranges)
     
     output_columns = list(wrf_hydro_site_matches.keys()) if labelby_pywrdrb_nodes else [item for sublist in list(wrf_hydro_site_matches.values()) for item in sublist]
+    for fid in wrf_scaling_gauges:
+        output_columns.append(fid)
+    for fid in wrf_scaling_hrus:
+        output_columns.append(fid)     
+    output_columns = list(set(output_columns))
+    
     wrf_pywrdrb_df = pd.DataFrame(index=wrf_reaches_df.index, columns=output_columns)
     
     for node, fid in wrf_hydro_site_matches.items():
@@ -234,6 +255,13 @@ def retrieve_pywrdrb_inputs_from_WRF_Hydro(climate, calib, landcover,
         else:
             wrf_pywrdrb_df.loc[:,fid] = node_flow.values
     
+    # Add scaling for reaches with inflow scaling
+    for fid in wrf_scaling_gauges:
+        if fid in wrf_pywrdrb_df.columns:
+            wrf_pywrdrb_df.loc[:, fid] = wrf_reaches_df[fid].values
+    for fid in wrf_scaling_hrus:
+        if fid in wrf_pywrdrb_df.columns:
+            wrf_pywrdrb_df.loc[:, fid] = wrf_lakes_df[fid].values
     return wrf_pywrdrb_df
 
 def get_export_filename(config):

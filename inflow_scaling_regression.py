@@ -8,39 +8,51 @@ cms_to_mgd = 22.82
 
 fig_dir = f'./figures/usgs_inflow_scaling/' 
 OUTPUT_DIR = f'./datasets/'
-PYWRDRB_DIR = '../Pywr-DRB/'
 
-# Dict of different gauge/HRU IDs for different datasets
+### Dict of different gauge/HRU IDs for different datasets
+# Notes:
+# 1. For scaling, we must have model flows at (i) obs gauges and (ii) total catchment/HRU
+# 2. NWM gauge IDs use USGS site numbers, since the NWM data we have is labeled with USGS site numbers
+# 3. NWM HRU IDs are the reachcodes
+# 4. WRF has the same reachcodes as NWM, but we need to use reachcodes for the wrf_gauges
 scaling_site_matches = {'cannonsville':{'nhmv10_gauges': ['1556'],   # '1559' matches '0142400103' but is not used (see lower comment)
                                 'nhmv10_hru': ['1562'],
                                 'nwmv21_gauges': ['01423000'],  # '0142400103' should be incuded but does not begin till 1996
                                 'nwmv21_hru': ['2613174'],
+                                'wrf_gauges': ['2613578'],
+                                'wrf_hru': ['2613174'],
                                 'obs_gauges': ['01423000']},     # '0142400103' should be incuded but does not begin till 1996
                         'neversink': {'nhmv10_gauges': ['1645'],
                                       'nhmv10_hru': ['1638'],
                                       'nwmv21_gauges': ['01435000'],
                                       'nwmv21_hru': ['4146742'],
+                                      'wrf_gauges': ['4147956'],
+                                      'wrf_hru': ['4146742'],
                                       'obs_gauges': ['01435000']},
                         'pepacton': {'nhmv10_gauges': ['1440', '1441', '1437'],  # '1443' matches '01414000' but is not used (see lower comment)
                                         'nhmv10_hru': ['1449'],
                                         'nwmv21_gauges': ['01415000', '01414500', '01413500'], # '01414000' should be incuded but does not begin till 1996
                                         'nwmv21_hru': ['1748473'],
+                                        'wrf_gauges': ['1748589', '1748611', '1748583'],
+                                        'wrf_hru': ['1748473'],
                                         'obs_gauges': ['01415000', '01414500', '01413500']},  # '01414000' should be incuded but does not begin till 1996
                         'fewalter': {'nhmv10_gauges': ['1684', '1691'],
                                         'nhmv10_hru': ['1684', '1691', '1694'],
                                         'nwmv21_gauges': ['01447720', '01447500'],
                                         'nwmv21_hru': ['4185065'],
+                                        'wrf_gauges': ['4185779', '4185679'],
+                                        'wrf_hru': ['4185065'],
                                         'obs_gauges': ['01447720', '01447500']},
                         'beltzvilleCombined': {'nhmv10_gauges': ['1703'],
                                         'nhmv10_hru': ['1710'],
                                         'nwmv21_gauges': ['01449360'],
                                         'nwmv21_hru': ['4186689'],
+                                        'wrf_gauges': ['4187925'],
+                                        'wrf_hru': ['4186689'],
                                         'obs_gauges': ['01449360']}}
 
 # List of all reservoirs able to be scaled
-nhmv10_scaled_reservoirs = list(scaling_site_matches.keys())
-nwmv21_scaled_reservoirs = list(scaling_site_matches.keys())
-
+scaled_reservoirs = list(scaling_site_matches.keys())
 
 # Quarters to perform regression over
 quarters = ('DJF','MAM','JJA','SON')
@@ -76,7 +88,7 @@ def prep_inflow_scaling_data():
 
     ## NHM
     # Streamflow
-    nhmv10_flows = pd.read_csv(f'{PYWRDRB_DIR}/input_data/modeled_gages/streamflow_daily_nhmv10_mgd.csv', 
+    nhmv10_flows = pd.read_csv(f'{OUTPUT_DIR}/NHMv10/csv/streamflow_daily_nhmv10_mgd.csv', 
                             index_col=0, parse_dates=True)
     nhmv10_flows = nhmv10_flows.loc['1983-10-01':, :]
 
@@ -100,13 +112,17 @@ def prep_inflow_scaling_data():
                                    inplace=True)
 
     # modeled lake inflows and segment flows
-    nwm_lake_inflows = pd.read_csv(f'{PYWRDRB_DIR}/input_data/modeled_gages/streamflow_daily_nwmv21_mgd.csv', 
+    nwm_lake_inflows = pd.read_csv(f'{OUTPUT_DIR}/NWMv21/streamflow_daily_nwmv21_mgd.csv', 
                                         index_col=0, parse_dates=True)
     nwm_lake_inflows = nwm_lake_inflows.loc['1983-10-01':, :]
     
     # Combine NWM data
     nwmv21_flows = pd.concat([nwm_gauge_flows, nwm_lake_inflows], axis=1)
 
+    ## WRF-Hydro
+    wrf_flows = pd.read_csv(f'{OUTPUT_DIR}/WRF-Hydro/streamflow_daily_wrfaorc_calib_nlcd2016.csv',
+                            index_col=0, parse_dates=True)
+    
 
     # Compile data for each reservoir in df
     data = pd.DataFrame()
@@ -118,6 +134,8 @@ def prep_inflow_scaling_data():
                 data[f'{node}_{flowtype}'] = obs_flows[ids].sum(axis=1)
             elif 'nwm' in flowtype:
                 data[f'{node}_{flowtype}'] = nwmv21_flows[ids].sum(axis=1)
+            elif 'wrf' in flowtype:
+                data[f'{node}_{flowtype}'] = wrf_flows[ids].sum(axis=1)
                 
     return data
 
@@ -156,7 +174,7 @@ def train_inflow_scale_regression_models(reservoir, inflows,
     Returns:
         (dict, dict): Tuple with OLS model, and fit model
     """
-    dataset_opts = ['nhmv10', 'nwmv21']
+    dataset_opts = ['nhmv10', 'nwmv21', 'wrf']
     assert(dataset in dataset_opts), f'Specified dataset invalid. Options: {dataset_opts}'
     
     # Rolling mean flows
@@ -224,7 +242,7 @@ def generate_scaled_inflows(start_date, end_date,
     Q_obs_scaled = Q_obs.copy()
     
     # Train models
-    scaled_reservoirs = nhmv10_scaled_reservoirs if donor_model == 'nhmv10' else nwmv21_scaled_reservoirs
+    
     linear_models = {}
     linear_results = {}
     for reservoir in scaled_reservoirs:
@@ -264,7 +282,6 @@ def generate_scaled_inflows(start_date, end_date,
     # Export
     if export:
         Q_obs_scaled.to_csv(f'{OUTPUT_DIR}/Hybrid/scaled_inflows_{donor_model}.csv', sep=',')
-        Q_obs_scaled.to_csv(f'{PYWRDRB_DIR}/input_data/scaled_inflows/scaled_inflows_{donor_model}.csv', sep=',')
         return Q_obs_scaled
     else:
         return Q_obs_scaled 
@@ -286,7 +303,6 @@ def plot_inflow_scaling_regression(donor_model = 'nhmv10',
     # Prepare the inflow scaling data
     inflow_data = prep_inflow_scaling_data()
     scatter_colors= {'DJF':'cornflowerblue', 'MAM':'darkgreen', 'JJA':'maroon', 'SON':'gold'}
-    scaled_reservoirs = nhmv10_scaled_reservoirs if donor_model == 'nhmv10' else nwmv21_scaled_reservoirs
     n_rows = len(scaled_reservoirs)
     n_cols = len(quarters)
     
@@ -341,17 +357,26 @@ def plot_inflow_scaling_regression(donor_model = 'nhmv10',
 
 if __name__ == '__main__':
 
-    for rolling_mean_window in [1, 3, 5, 7]:    
+    for rolling_mean_window in [1, 3, 5, 7]:
+        # ### Scale based on NHMv10    
+        # export_scaled_inflows = True if rolling_mean_window == 3 else False
+        # generate_scaled_inflows(start_date='1983-10-01', end_date='2020-12-31', 
+        #                         scaling_rolling_window=rolling_mean_window, 
+        #                         donor_model='nhmv10',
+        #                         export=export_scaled_inflows)
+        # plot_inflow_scaling_regression(donor_model = 'nhmv10', roll_window = rolling_mean_window)
+
+        # ### Scale based on NWMv2.1
+        # generate_scaled_inflows(start_date='1983-10-01', end_date='2020-12-31', 
+        #                         scaling_rolling_window=rolling_mean_window, 
+        #                         donor_model='nwmv21',
+        #                         export=export_scaled_inflows)
+        # plot_inflow_scaling_regression(donor_model = 'nwmv21', roll_window = rolling_mean_window)
+        
+        ### Scale based on WRF-Hydro 
         export_scaled_inflows = True if rolling_mean_window == 3 else False
         generate_scaled_inflows(start_date='1983-10-01', end_date='2020-12-31', 
                                 scaling_rolling_window=rolling_mean_window, 
-                                donor_model='nhmv10',
+                                donor_model='wrf',
                                 export=export_scaled_inflows)
-        plot_inflow_scaling_regression(donor_model = 'nhmv10', roll_window = rolling_mean_window)
-
-
-        generate_scaled_inflows(start_date='1983-10-01', end_date='2020-12-31', 
-                                scaling_rolling_window=rolling_mean_window, 
-                                donor_model='nwmv21',
-                                export=export_scaled_inflows)
-        plot_inflow_scaling_regression(donor_model = 'nwmv21', roll_window = rolling_mean_window)
+        plot_inflow_scaling_regression(donor_model = 'wrf', roll_window = rolling_mean_window)
