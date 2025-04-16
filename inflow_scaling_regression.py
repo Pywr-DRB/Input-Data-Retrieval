@@ -375,7 +375,7 @@ if __name__ == '__main__':
         
         ### Scale based on WRF-Hydro 
         export_scaled_inflows = True if rolling_mean_window == 3 else False
-        generate_scaled_inflows(start_date='1983-10-01', end_date='2020-12-31', 
+        generate_scaled_inflows(start_date='1983-10-01', end_date='2021-12-31', 
                                 scaling_rolling_window=rolling_mean_window, 
                                 donor_model='wrf',
                                 export=export_scaled_inflows)
