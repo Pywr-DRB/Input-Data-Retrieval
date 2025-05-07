@@ -4,6 +4,17 @@ All paths are relative from this file's location.
 """
 import os
 
+# PYWRDRB_DATA_DIR cotains processed data used in the pywrdrb package/model
+# this data will be stored in the source code within: Pywr-DRB/src/pywrdrb/data/
+# the data has corresponding subfolders for different data sources.
+# The Input-Data-Retrieval scripts are used to process and save this data in PYWRDRB_DATA_DIR
+# while matching the structure of the pywrdrb/data/ folder.
+# We can then later move the data to the Pywr-DRB/src/pywrdrb/data/ folder
+# this is done manually for now, but we can automate this in the future
+PYWRDRB_DATA_DIR = './datasets/pywrdrb_data/'
+
+
+
 # pwrdrb source code
 # folder should contain ./pywrdrb/*
 PYWRDRB_DIR = '../Pywr-DRB/'
@@ -29,3 +40,10 @@ for file in necessary_files:
 
 # Contains various WRF-Hydro model outputs, as provided by Aubrey Duggar at NCAR
 WRFHYDRO_DIR = './datasets/WRF-Hydro/'
+
+
+# Contains geospatial data (catchment boundaries, etc.)
+SPATIAL_DIR = './datasets/Spatial/'
+
+# Contains demand data
+DEMAND_DIR = './datasets/Demand/'
